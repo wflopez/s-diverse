@@ -29,6 +29,7 @@ export PATH="$HOME/.deno/bin:$PATH"
 The script reads a TSV file with YouTube links and timestamps, downloads the audio, and extracts the segments.
 
 ```bash
+mkdir -p data/audio
 python src/download_audio.py --tsv_file data/diversse.tsv
 ```
 
