@@ -230,6 +230,16 @@ def process_tsv_file(tsv_path: str, output_dir: str, temp_dir: str = None) -> No
     has_disease_column = 'Disease' in rows[0].keys()
     logger.info(f"Processing {len(rows)} rows from TSV file")
     
+    # Statistics tracking
+    stats = {
+        'total_rows': len(rows),
+        'total_sources': 0,
+        'successful_downloads': 0,
+        'failed_downloads': [],
+        'successful_segments': 0,
+        'failed_segments': [],
+    }
+    
     # Group rows by source URL
     sources: Dict[str, List[Dict]] = {}
     for row in rows:
@@ -238,6 +248,7 @@ def process_tsv_file(tsv_path: str, output_dir: str, temp_dir: str = None) -> No
             sources[source] = []
         sources[source].append(row)
     
+    stats['total_sources'] = len(sources)
     logger.info(f"Found {len(sources)} unique audio sources")
     
     # Process each unique source
@@ -251,7 +262,12 @@ def process_tsv_file(tsv_path: str, output_dir: str, temp_dir: str = None) -> No
         
         if not download_audio(source_url, str(temp_audio.with_suffix(''))):
             logger.warning(f"Skipping source {source_url} due to download failure")
+            stats['failed_downloads'].append(source_url)
+            for row in source_rows:
+                stats['failed_segments'].append(row.get('Sample_ID', 'Unknown'))
             continue
+        
+        stats['successful_downloads'] += 1
         
         # Find actual downloaded file (yt-dlp adds extension)
         downloaded_files = list(temp_path.glob(f"source_{source_idx}*"))
@@ -287,19 +303,43 @@ def process_tsv_file(tsv_path: str, output_dir: str, temp_dir: str = None) -> No
                 # Extract segment
                 output_file = disease_output_path / f"{sample_id}.wav"
                 if extract_segment(str(converted_audio), str(output_file), start, end):
-                    logger.info(f"✓ Created: {output_file}")
+                    logger.info(f"Created: {output_file}")
+                    stats['successful_segments'] += 1
                 else:
-                    logger.error(f"✗ Failed to extract segment for {sample_id}")
+                    logger.error(f"Failed to extract segment for {sample_id}")
+                    stats['failed_segments'].append(sample_id)
             
             except ValueError as e:
                 logger.error(f"Skipping row: {e}")
+                stats['failed_segments'].append(row.get('Sample_ID', 'Unknown'))
             except Exception as e:
                 logger.error(f"Error processing row {row}: {e}")
+                stats['failed_segments'].append(row.get('Sample_ID', 'Unknown'))
     
     logger.info(f"\n{'='*70}")
     logger.info("Processing complete!")
     logger.info(f"Output files saved to: {output_path}")
     logger.info(f"{'='*70}")
+    
+    # Print summary
+    logger.info("")
+    logger.info("SUMMARY")
+    logger.info(f"  Total rows: {stats['total_rows']}")
+    logger.info(f"  Total sources: {stats['total_sources']}")
+    logger.info(f"  Downloads: {stats['successful_downloads']}/{stats['total_sources']} successful")
+    logger.info(f"  Segments: {stats['successful_segments']}/{stats['total_rows']} successful")
+    
+    if stats['failed_downloads']:
+        logger.info("")
+        logger.info(f"Failed downloads ({len(stats['failed_downloads'])}):")
+        for url in stats['failed_downloads']:
+            logger.info(f"  - {url}")
+    
+    if stats['failed_segments']:
+        logger.info("")
+        logger.info(f"Failed segments ({len(stats['failed_segments'])}):")
+        for sample_id in stats['failed_segments']:
+            logger.info(f"  - {sample_id}")
 
 
 def main():
