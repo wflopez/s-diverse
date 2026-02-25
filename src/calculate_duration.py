@@ -1,13 +1,3 @@
-#!/usr/bin/env python3
-"""
-Add Duration column to TSV file based on Timestamp column.
-
-This script reads a TSV file and adds a 'Duration' column (in seconds)
-calculated from the 'Timestamp' column in format 'HH:MM:SS - HH:MM:SS'.
-
-The output TSV file is written to the same location as the input file.
-"""
-
 import sys
 import csv
 import argparse
