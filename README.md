@@ -1,6 +1,6 @@
-# DiverSSe
+# S-DiverSe
 
-Diverse Spanish Speech
+Spanish Diverse Speech
 
 ## Setup environment
 
